@@ -47,6 +47,79 @@
 
 请复制 `.env.example` 为你自己的 `.env` 使用。
 
+## 环境变量管理
+
+### 必需变量
+
+- `DIDA365_CLIENT_ID`
+- `DIDA365_CLIENT_SECRET`
+
+### 常用变量
+
+- `DIDA365_SERVICE_TYPE`
+  - 可选：`dida365` / `ticktick`
+  - 默认：`dida365`
+- `DIDA365_REDIRECT_URI`
+  - 默认：`http://127.0.0.1:8788/callback`
+
+### 可选变量
+
+- `DIDA365_SCOPE`
+  - 默认：`tasks:read tasks:write`
+- `DIDA365_TOKEN_FILE`
+  - 自定义 token 文件位置
+- `DIDA365_ACCESS_TOKEN`
+  - 不建议手工长期维护；通常由 token 文件管理
+
+### access token 默认存放位置
+
+默认路径：
+
+```text
+~/.config/dida365-openapi/{service_type}-{client_id}.json
+```
+
+例如：
+
+```text
+~/.config/dida365-openapi/dida365-<client_id>.json
+```
+
+如果你想改位置，可以：
+
+- 设置环境变量 `DIDA365_TOKEN_FILE`
+- 或在命令行使用 `--token-file`
+
+优先级：
+
+1. `--token-file`
+2. `DIDA365_TOKEN_FILE`
+3. 默认路径
+
+### 读取顺序
+
+CLI 启动时当前实现会按下面顺序取配置：
+
+1. 当前进程已有的系统环境变量
+2. 当前工作目录 `.env`
+3. 代码默认值
+
+也就是说：
+
+- 写在 `.zshrc` 里的 `export DIDA365_CLIENT_ID=...` **有用**
+- 只要你是在加载过 `.zshrc` 的 shell 里运行 `dida365-openapi`，这些变量就会生效
+- 如果系统环境变量和 `.env` 同时存在，**系统环境变量优先**
+
+### 建议做法
+
+对于公开仓库和长期维护，推荐：
+
+- 把 `DIDA365_CLIENT_ID` / `DIDA365_CLIENT_SECRET` 放在本地 `.env`
+- 不把真实密钥长期写进 `.zshrc`
+- token 继续放在 `~/.config/dida365-openapi/`
+
+这样最清晰，也最不容易误提交。
+
 ## 快速开始
 
 1. 创建并填写本地 `.env`
@@ -118,6 +191,43 @@ skills/dida365-openapi/
 因此发布到 GitHub 后，skill 安装器应指向这个子路径，而不是仓库根目录。
 
 也就是说，仓库是 CLI 项目，`skills/dida365-openapi/` 是 skill 包装层。
+
+## 发布到 GitHub 和 skills.sh
+
+### 发布到 GitHub
+
+1. 确认 `.env` 没有被提交
+2. 确认 `~/.config/dida365-openapi/*.json` 不在仓库里
+3. 建议在发布前去 Dida365 开发者后台重新生成新的 `Client Secret`
+4. 在 GitHub 创建仓库，例如 `brooksyuan/dida365-openapi`
+5. 添加远程并推送：
+
+```bash
+git remote add origin git@github.com:<owner>/dida365-openapi.git
+git push -u origin main
+git push -u origin develop
+```
+
+### 发布到 skills.sh
+
+skills.sh 当前**没有单独的发布命令**。
+
+实际做法就是：
+
+1. 把 skill 放在一个公开 git 仓库里
+2. 让别人能通过 `npx skills add` 安装
+3. 一旦有人安装，它就可能通过安装遥测出现在 skills.sh
+
+对这个仓库来说，skill 的安装路径应是：
+
+```text
+https://github.com/<owner>/dida365-openapi/tree/main/skills/dida365-openapi
+```
+
+也就是说，公开发布后，你需要分享的是：
+
+- GitHub 仓库地址
+- 或者这个 skill 子路径的 GitHub 地址
 
 ## 仓库结构
 
