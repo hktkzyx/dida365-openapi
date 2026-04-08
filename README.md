@@ -1,19 +1,18 @@
-# Dida365 OpenAPI Skill
+# dida365-openapi
 
-一个面向家庭助理与自动化场景的 Dida365 / TickTick OpenAPI skill。
+一个可直接安装运行的 Dida365 / TickTick OpenAPI 命令行工具，并附带一个可安装的 skill 包装层。
 
-这个仓库当前重点解决三件事：
+这个仓库有两层：
 
-- 稳定完成 OAuth2 认证
-- 通过 CLI 创建、更新、完成和查询任务
-- 在“提醒我 / 定时任务 / 周期提醒”场景下，默认创建滴答清单任务
+- 根目录：可通过 `uv tool install` 安装的 CLI 项目
+- `skills/dida365-openapi/`：供 skill 安装器使用的 skill 目录
 
 ## 适合谁
 
 - 人类使用者：想要快速把提醒、待办、周期任务写入滴答清单
 - Agent / AI 工具：需要一个可脚本化、可复用、可发布的滴答任务执行层
 
-## 当前能力
+## 当前 CLI 能力
 
 - `auth`: 浏览器或手动粘贴 code 完成 OAuth2
 - `projects`: 项目 CRUD 和项目数据读取
@@ -56,24 +55,38 @@
 cp .env.example .env
 ```
 
-2. 认证
+2. 安装 CLI
+
+本地开发：
+
+```bash
+uv tool install .
+```
+
+运行：
+
+```bash
+dida365-openapi --help
+```
+
+3. 认证
 
 有浏览器：
 
 ```bash
-uv run scripts/dida365_cli.py auth
+dida365-openapi auth
 ```
 
 无浏览器：
 
 ```bash
-uv run scripts/dida365_cli.py auth --manual
+dida365-openapi auth --manual
 ```
 
-3. 创建一个默认单次准时提醒
+4. 创建一个默认单次准时提醒
 
 ```bash
-uv run scripts/dida365_cli.py remind create \
+dida365-openapi remind create \
   --title "两分钟后喝水" \
   --at "2026-04-08 14:30:00"
 ```
@@ -85,25 +98,26 @@ uv run scripts/dida365_cli.py remind create \
 - 默认提醒触发器为 `TRIGGER:PT0S`
 - 默认是单次提醒，不带重复规则
 
-4. 创建一个周期提醒
+5. 创建一个周期提醒
 
 ```bash
-uv run scripts/dida365_cli.py remind create \
+dida365-openapi remind create \
   --title "每月调仓" \
   --at "2026-04-24 09:00:00" \
   --repeat-flag "RRULE:FREQ=MONTHLY;INTERVAL=1;BYMONTHDAY=24"
 ```
 
-## 通过 GitHub / npx skills 安装
+## 通过 GitHub / skill 安装
 
-这个仓库的**根目录就是 skill 根目录**，也就是：
+这个仓库的 skill 目录在：
 
-- 仓库根目录直接包含 `SKILL.md`
-- `agents/`、`references/`、`scripts/` 都相对于仓库根目录放置
+```text
+skills/dida365-openapi/
+```
 
-这意味着当安装器支持“从 GitHub repo 根路径安装 skill”时，不需要额外指定子目录。
+因此发布到 GitHub 后，skill 安装器应指向这个子路径，而不是仓库根目录。
 
-如果你后续把它发布到 GitHub，安装器应直接指向仓库根目录，而不是某个 `skills/...` 子路径。
+也就是说，仓库是 CLI 项目，`skills/dida365-openapi/` 是 skill 包装层。
 
 ## 仓库结构
 
@@ -111,11 +125,14 @@ uv run scripts/dida365_cli.py remind create \
 .
 ├── README.md
 ├── .env.example
-├── SKILL.md
-├── agents/openai.yaml
-├── references/api_summary.md
-├── scripts/dida365_cli.py
-└── tests/test_dida365_cli.py
+├── pyproject.toml
+├── src/dida365_openapi/
+├── tests/
+└── skills/
+    └── dida365-openapi/
+        ├── SKILL.md
+        ├── agents/openai.yaml
+        └── references/api_summary.md
 ```
 
 ## 面向 Agent 的约定

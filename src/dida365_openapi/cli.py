@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Minimal Dida365/TickTick OpenAPI CLI based on the official OAuth2 flow."""
+"""Dida365 / TickTick OpenAPI CLI."""
 
 from __future__ import annotations
 
@@ -32,9 +32,7 @@ def load_dotenv() -> None:
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, value = line.split("=", 1)
-        key = key.strip()
-        value = value.strip().strip("'").strip('"')
-        os.environ.setdefault(key, value)
+        os.environ.setdefault(key.strip(), value.strip().strip("'").strip('"'))
 
 
 def normalize_datetime(value: str | None, time_zone: str | None = None) -> str | None:
@@ -48,8 +46,7 @@ def normalize_datetime(value: str | None, time_zone: str | None = None) -> str |
         value = value[:-1] + "+00:00"
     for fmt in ("%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
         try:
-            dt = datetime.strptime(value, fmt)
-            dt = dt.replace(tzinfo=local_tz)
+            dt = datetime.strptime(value, fmt).replace(tzinfo=local_tz)
             return dt.astimezone(ZoneInfo("UTC")).strftime("%Y-%m-%dT%H:%M:%S+0000")
         except ValueError:
             pass
@@ -58,9 +55,6 @@ def normalize_datetime(value: str | None, time_zone: str | None = None) -> str |
     except ValueError:
         return value
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=local_tz)
-    offset = dt.strftime("%z")
-    if not offset:
         dt = dt.replace(tzinfo=local_tz)
     return dt.astimezone(ZoneInfo("UTC")).strftime("%Y-%m-%dT%H:%M:%S+0000")
 
@@ -106,10 +100,7 @@ class ApiClient:
 
     def _save_token(self, token_data: dict[str, Any]) -> None:
         self.config.token_file.parent.mkdir(parents=True, exist_ok=True)
-        self.config.token_file.write_text(
-            json.dumps(token_data, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
+        self.config.token_file.write_text(json.dumps(token_data, ensure_ascii=False, indent=2), encoding="utf-8")
         self.token = token_data
 
     def _update_token_metadata(self, **fields: Any) -> None:
@@ -136,10 +127,7 @@ class ApiClient:
         absolute_url: str | None = None,
     ) -> Any:
         url = absolute_url or f"{self.config.api_base}/{path.lstrip('/')}"
-        headers = {
-            "User-Agent": "dida365-openapi-skill/1.0",
-            "Accept": "application/json",
-        }
+        headers = {"User-Agent": "dida365-openapi/0.1.0", "Accept": "application/json"}
         body = None
         if auth:
             headers["Authorization"] = f"Bearer {self._access_token()}"
@@ -233,6 +221,54 @@ def build_config(args: argparse.Namespace) -> Config:
     )
 
 
+def compact_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in payload.items() if value is not None}
+
+
+def task_payload_from_args(args: argparse.Namespace, require_title: bool) -> dict[str, Any]:
+    payload = {
+        "projectId": getattr(args, "project_id", None),
+        "title": args.title,
+        "content": args.content,
+        "desc": args.desc,
+        "isAllDay": args.all_day,
+        "startDate": normalize_datetime(args.start_date, args.time_zone),
+        "dueDate": normalize_datetime(args.due_date, args.time_zone),
+        "timeZone": args.time_zone,
+        "priority": args.priority,
+        "reminders": getattr(args, "reminders", None),
+        "repeatFlag": getattr(args, "repeat_flag", None),
+    }
+    if getattr(args, "task_id", None):
+        payload["id"] = args.task_id
+    payload = compact_payload(payload)
+    if require_title and not payload.get("title"):
+        raise SystemExit("tasks create 需要 --title。")
+    return payload
+
+
+def remind_payload_from_args(args: argparse.Namespace, client: ApiClient) -> dict[str, Any]:
+    fake_args = argparse.Namespace(
+        project_id=args.project_id,
+        title=args.title,
+        content=args.content,
+        desc=args.desc,
+        all_day=args.all_day,
+        start_date=args.at,
+        due_date=args.at,
+        time_zone=args.time_zone,
+        priority=args.priority,
+        reminders=args.reminders or ["TRIGGER:PT0S"],
+        repeat_flag=args.repeat_flag,
+        task_id=None,
+    )
+    payload = task_payload_from_args(fake_args, require_title=True)
+    if args.inbox or not args.project_id:
+        payload["projectId"] = ""
+        client.resolve_inbox_project_id()
+    return payload
+
+
 def command_auth(client: ApiClient, config: Config, args: argparse.Namespace) -> None:
     state = secrets.token_urlsafe(16)
     params = {
@@ -263,8 +299,7 @@ def command_auth(client: ApiClient, config: Config, args: argparse.Namespace) ->
             code = pasted
         if not code:
             raise SystemExit("未从输入中解析出 code。")
-        token = client.exchange_code(code)
-        print_json(token)
+        print_json(client.exchange_code(code))
         return
 
     parsed = urllib.parse.urlparse(config.redirect_uri)
@@ -301,8 +336,7 @@ def command_auth(client: ApiClient, config: Config, args: argparse.Namespace) ->
         raise SystemExit("授权超时，未收到回调 code。")
     if callback.get("state") != state:
         raise SystemExit("state 校验失败，已终止。")
-    token = client.exchange_code(code)
-    print_json(token)
+    print_json(client.exchange_code(code))
 
 
 def command_exchange_code(client: ApiClient, _config: Config, args: argparse.Namespace) -> None:
@@ -320,23 +354,10 @@ def command_projects(client: ApiClient, _config: Config, args: argparse.Namespac
         print_json(client.get(f"project/{args.project_id}/data"))
         return
     if args.projects_command == "create":
-        payload = {
-            "name": args.name,
-            "color": args.color,
-            "viewMode": args.view_mode,
-            "kind": args.kind,
-        }
-        print_json(client.post("project", compact_payload(payload)))
+        print_json(client.post("project", compact_payload({"name": args.name, "color": args.color, "viewMode": args.view_mode, "kind": args.kind})))
         return
     if args.projects_command == "update":
-        payload = {
-            "id": args.project_id,
-            "name": args.name,
-            "color": args.color,
-            "viewMode": args.view_mode,
-            "kind": args.kind,
-        }
-        print_json(client.post(f"project/{args.project_id}", compact_payload(payload)))
+        print_json(client.post(f"project/{args.project_id}", compact_payload({"id": args.project_id, "name": args.name, "color": args.color, "viewMode": args.view_mode, "kind": args.kind})))
         return
     if args.projects_command == "delete":
         print_json({"deleted": True, "projectId": args.project_id, "response": client.delete(f"project/{args.project_id}")})
@@ -344,62 +365,9 @@ def command_projects(client: ApiClient, _config: Config, args: argparse.Namespac
     raise SystemExit("不支持的 projects 子命令。")
 
 
-def compact_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    return {key: value for key, value in payload.items() if value is not None}
-
-
-def task_payload_from_args(args: argparse.Namespace, require_title: bool) -> dict[str, Any]:
-    reminders = getattr(args, "reminders", None)
-    payload = {
-        "projectId": getattr(args, "project_id", None),
-        "title": args.title,
-        "content": args.content,
-        "desc": args.desc,
-        "isAllDay": args.all_day,
-        "startDate": normalize_datetime(args.start_date, args.time_zone),
-        "dueDate": normalize_datetime(args.due_date, args.time_zone),
-        "timeZone": args.time_zone,
-        "priority": args.priority,
-        "reminders": reminders,
-        "repeatFlag": getattr(args, "repeat_flag", None),
-    }
-    if getattr(args, "task_id", None):
-        payload["id"] = args.task_id
-    payload = compact_payload(payload)
-    if require_title and not payload.get("title"):
-        raise SystemExit("tasks create 需要 --title。")
-    return payload
-
-
-def remind_payload_from_args(args: argparse.Namespace, client: ApiClient) -> dict[str, Any]:
-    if not args.at:
-        raise SystemExit("remind create 需要 --at。")
-    fake_args = argparse.Namespace(
-        project_id=args.project_id,
-        title=args.title,
-        content=args.content,
-        desc=args.desc,
-        all_day=args.all_day,
-        start_date=args.at,
-        due_date=args.at,
-        time_zone=args.time_zone,
-        priority=args.priority,
-        reminders=args.reminders or ["TRIGGER:PT0S"],
-        repeat_flag=args.repeat_flag,
-        task_id=None,
-    )
-    payload = task_payload_from_args(fake_args, require_title=True)
-    if args.inbox or not args.project_id:
-        payload["projectId"] = ""
-        client.resolve_inbox_project_id()
-    return payload
-
-
 def command_tasks(client: ApiClient, _config: Config, args: argparse.Namespace) -> None:
     if args.tasks_command == "list":
-        data = client.get(f"project/{args.project_id}/data")
-        tasks = data.get("tasks", [])
-        print_json(tasks)
+        print_json(client.get(f"project/{args.project_id}/data").get("tasks", []))
         return
     if args.tasks_command == "get":
         print_json(client.get(f"project/{args.project_id}/task/{args.task_id}"))
@@ -425,8 +393,7 @@ def command_inbox(client: ApiClient, _config: Config, args: argparse.Namespace) 
         print_json({"projectId": inbox_project_id})
         return
     if args.inbox_command == "list":
-        data = client.get(f"project/{inbox_project_id}/data")
-        print_json(data.get("tasks", []))
+        print_json(client.get(f"project/{inbox_project_id}/data").get("tasks", []))
         return
     if args.inbox_command == "create":
         payload = task_payload_from_args(args, require_title=True)
@@ -446,6 +413,21 @@ def command_remind(client: ApiClient, _config: Config, args: argparse.Namespace)
 def add_common_config(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--service-type", choices=["dida365", "ticktick"], help="覆盖 DIDA365_SERVICE_TYPE")
     parser.add_argument("--token-file", help="覆盖 token 文件路径")
+
+
+def add_task_fields(parser: argparse.ArgumentParser, require_task_id: bool) -> None:
+    parser.add_argument("--title")
+    parser.add_argument("--content")
+    parser.add_argument("--desc")
+    parser.add_argument("--start-date")
+    parser.add_argument("--due-date")
+    parser.add_argument("--time-zone")
+    parser.add_argument("--priority", type=int, choices=[0, 1, 3, 5])
+    parser.add_argument("--reminder", dest="reminders", action="append", help="提醒触发器，例如 TRIGGER:PT0S（开始时提醒）")
+    parser.add_argument("--repeat-flag", help="重复规则，例如 RRULE:FREQ=DAILY")
+    parser.add_argument("--all-day", action="store_true")
+    if require_task_id:
+        parser.add_argument("--task-id", required=True)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -533,21 +515,6 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def add_task_fields(parser: argparse.ArgumentParser, require_task_id: bool) -> None:
-    parser.add_argument("--title")
-    parser.add_argument("--content")
-    parser.add_argument("--desc")
-    parser.add_argument("--start-date")
-    parser.add_argument("--due-date")
-    parser.add_argument("--time-zone")
-    parser.add_argument("--priority", type=int, choices=[0, 1, 3, 5])
-    parser.add_argument("--reminder", dest="reminders", action="append", help="提醒触发器，例如 TRIGGER:PT0S（开始时提醒）")
-    parser.add_argument("--repeat-flag", help="重复规则，例如 RRULE:FREQ=DAILY")
-    parser.add_argument("--all-day", action="store_true")
-    if require_task_id:
-        parser.add_argument("--task-id", required=True)
-
-
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
@@ -574,6 +541,3 @@ def main() -> None:
         return
     raise SystemExit("未知命令。")
 
-
-if __name__ == "__main__":
-    main()

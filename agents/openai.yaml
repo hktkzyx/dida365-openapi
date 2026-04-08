@@ -1,4 +1,0 @@
-interface:
-  display_name: "Dida365 OpenAPI"
-  short_description: "Help with Dida365 and TickTick OpenAPI workflows"
-  default_prompt: "Use $dida365-openapi to operate Dida365 or TickTick projects and tasks through the official OpenAPI."

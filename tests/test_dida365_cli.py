@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 def load_module():
-    path = Path(__file__).resolve().parents[1] / "scripts" / "dida365_cli.py"
+    path = Path(__file__).resolve().parents[1] / "src" / "dida365_openapi" / "cli.py"
     spec = importlib.util.spec_from_file_location("dida365_cli", path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module

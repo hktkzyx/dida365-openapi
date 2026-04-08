@@ -1,9 +1,19 @@
 [project]
-name = "dida365-openapi-skill"
+name = "dida365-openapi"
 version = "0.1.0"
 description = "A publishable Dida365/TickTick OpenAPI skill with reminder-first workflows."
 requires-python = ">=3.11"
+readme = "README.md"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project.scripts]
+dida365-openapi = "dida365_openapi.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dida365_openapi"]
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
-
+pythonpath = ["src"]

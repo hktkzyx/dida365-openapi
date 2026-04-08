@@ -1,0 +1,5 @@
+interface:
+  display_name: "Dida365 OpenAPI"
+  short_description: "Help with Dida365 and TickTick OpenAPI workflows"
+  default_prompt: "Use $dida365-openapi to create reminders and operate Dida365 or TickTick tasks through the dida365-openapi CLI."
+
