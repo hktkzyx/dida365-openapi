@@ -1,0 +1,72 @@
+# Based on GitHub's official Python.gitignore:
+# https://raw.githubusercontent.com/github/gitignore/main/Python.gitignore
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[codz]
+*$py.class
+
+# Distribution / packaging
+.Python
+build/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Environments
+.env
+.envrc
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# UV / Python tooling
+.python-version
+.pdm-python
+.pdm-build/
+.pixi
+__pypackages__/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.pytype/
+
+# Editors / IDEs
+.idea/
+.vscode/
+
+# Local app state and credentials
+.claude/
+.agents/
+*.local.json
+
+# Project-specific sensitive or generated files
+skills/dida365-openapi/scripts/__pycache__/
+skills/dida365-openapi/.tokens/
+

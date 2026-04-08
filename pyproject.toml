@@ -1,0 +1,9 @@
+[project]
+name = "dida365-openapi-skill"
+version = "0.1.0"
+description = "A publishable Dida365/TickTick OpenAPI skill with reminder-first workflows."
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
