@@ -4,6 +4,24 @@ version = "0.1.0"
 description = "A publishable Dida365/TickTick OpenAPI skill with reminder-first workflows."
 requires-python = ">=3.11"
 readme = "README.md"
+keywords = ["dida365", "ticktick", "todo", "reminder", "openapi", "cli"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Topic :: Office/Business :: Scheduling",
+    "Topic :: Utilities",
+]
+
+[project.urls]
+Homepage = "https://github.com/hktkzyx/dida365-openapi"
+Repository = "https://github.com/hktkzyx/dida365-openapi"
+Issues = "https://github.com/hktkzyx/dida365-openapi/issues"
+
+[project.optional-dependencies]
+test = ["pytest>=8,<9"]
 
 [build-system]
 requires = ["hatchling"]
@@ -17,3 +35,4 @@ packages = ["src/dida365_openapi"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+testpaths = ["tests"]
