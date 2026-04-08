@@ -23,16 +23,38 @@ from zoneinfo import ZoneInfo
 DEFAULT_SCOPE = "tasks:read tasks:write"
 
 
-def load_dotenv() -> None:
-    env_path = Path.cwd() / ".env"
+def parse_dotenv(env_path: Path) -> dict[str, str]:
+    data: dict[str, str] = {}
     if not env_path.exists():
-        return
+        return data
     for raw_line in env_path.read_text(encoding="utf-8").splitlines():
         line = raw_line.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, value = line.split("=", 1)
-        os.environ.setdefault(key.strip(), value.strip().strip("'").strip('"'))
+        data[key.strip()] = value.strip().strip("'").strip('"')
+    return data
+
+
+def load_dotenv(env_file: str | None = None) -> None:
+    original_env_keys = set(os.environ)
+    merged: dict[str, str] = {}
+
+    explicit_env_file = env_file or os.getenv("DIDA365_ENV_FILE")
+    if explicit_env_file:
+        env_paths = [Path(explicit_env_file).expanduser()]
+    else:
+        env_paths = [
+            Path.home() / ".config" / "dida365-openapi" / ".env",
+            Path.cwd() / ".env",
+        ]
+
+    for env_path in env_paths:
+        merged.update(parse_dotenv(env_path))
+
+    for key, value in merged.items():
+        if key not in original_env_keys:
+            os.environ[key] = value
 
 
 def normalize_datetime(value: str | None, time_zone: str | None = None) -> str | None:
@@ -192,7 +214,7 @@ class ApiClient:
 
 
 def build_config(args: argparse.Namespace) -> Config:
-    load_dotenv()
+    load_dotenv(args.env_file)
     service_type = (args.service_type or os.getenv("DIDA365_SERVICE_TYPE") or "dida365").strip().lower()
     if service_type not in {"dida365", "ticktick"}:
         raise SystemExit("DIDA365_SERVICE_TYPE 只能是 dida365 或 ticktick。")
@@ -411,6 +433,7 @@ def command_remind(client: ApiClient, _config: Config, args: argparse.Namespace)
 
 
 def add_common_config(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--env-file", help="覆盖 .env 文件路径；默认依次尝试 ~/.config/dida365-openapi/.env 和当前工作目录 .env")
     parser.add_argument("--service-type", choices=["dida365", "ticktick"], help="覆盖 DIDA365_SERVICE_TYPE")
     parser.add_argument("--token-file", help="覆盖 token 文件路径")
 
@@ -540,4 +563,3 @@ def main() -> None:
         command_remind(client, config, args)
         return
     raise SystemExit("未知命令。")
-
